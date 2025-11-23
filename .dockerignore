@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.kiro/
+
+# Git
+.git/
+.gitignore
+.history/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Frontend
+fe/
+node_modules/
+
+# Documentation
+README.md
+*.md
+
+# Environment
+.env.example
+.env.local
+
+# Test files
+test_*.py
+*_test.py
+tests/

@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+langchain
+langchain-community
+langchain-core
+langchain-ollama
+qdrant-client
+httpx
+requests
+python-dotenv
+pydantic
+pydantic-settings
+logger
+PyPDF2

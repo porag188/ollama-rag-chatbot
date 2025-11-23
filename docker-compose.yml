@@ -1,0 +1,96 @@
+version: "3.9"
+services:
+  # Ollama Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Start Ollama server in background
+        /bin/ollama serve &
+        
+        echo "⏳ Waiting for Ollama service to start..."
+        # Wait until Ollama becomes responsive
+        until ollama list > /dev/null 2>&1; do
+          sleep 1
+        done
+        echo "🚀 Ollama service is running"
+        
+        # Pull models if not already present
+        echo "🔍 Checking required models..."
+        
+        if ! ollama list | grep -q "${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:latest}"; then
+          echo "Pulling embedding model: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:latest}..."
+          ollama pull ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:latest}
+        else
+          echo "Embedding model already exists: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:latest}"
+        fi
+        
+        if ! ollama list | grep -q "${OLLAMA_LLM_MODEL:-granite3.1-moe:1b}"; then
+          echo "Pulling LLM model: ${OLLAMA_LLM_MODEL:-granite3.1-moe:1b}..."
+          ollama pull ${OLLAMA_LLM_MODEL:-granite3.1-moe:1b}
+        else
+          echo "LLM model already exists: ${OLLAMA_LLM_MODEL:-granite3.1-moe:1b}"
+        fi
+        
+        echo " ✅All models ready!"
+        echo "Embedding model: $EMBEDDING_MODEL"
+        echo "LLM model: $LLM_MODEL"
+        
+        # Keep container running
+        wait
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list | grep -q '${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:latest}' && ollama list | grep -q '${OLLAMA_LLM_MODEL:-granite3.1-moe:1b}'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+  # FastAPI Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./scripts:/app/scripts
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - rag-network
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  rag-network:
+    driver: bridge
+
